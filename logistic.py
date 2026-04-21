@@ -16,6 +16,18 @@ import joblib
 import os
 
 RESULTS_PATH = "logreg_results.txt"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def resolve_existing_path(*relative_paths):
+    for relative_path in relative_paths:
+        candidate = os.path.join(BASE_DIR, relative_path)
+        if os.path.exists(candidate):
+            return candidate
+    raise FileNotFoundError(
+        "None of the expected paths were found: "
+        + ", ".join(os.path.join(BASE_DIR, path) for path in relative_paths)
+    )
 
 # ---------------- Load Supporting Classes ----------------
 class FastChunkedPatchLoader:
@@ -113,9 +125,9 @@ if __name__ == "__main__":
     print("🚀 Logistic Regression Training on Siamese Embeddings")
 
     # Load patch and pair data
-    CHUNK_DIR = "patch_chunks"
-    pairs = np.load("siamese_week_pairs.npy")
-    labels = np.load("siamese_week_pair_labels.npy")
+    CHUNK_DIR = resolve_existing_path("patch_chunks", "patch_chunks_final")
+    pairs = np.load(os.path.join(BASE_DIR, "siamese_week_pairs.npy"))
+    labels = np.load(os.path.join(BASE_DIR, "siamese_week_pair_labels.npy"))
 
     from sklearn.model_selection import train_test_split
     train_pairs, test_pairs, train_labels, test_labels = train_test_split(
@@ -132,7 +144,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     encoder = FullCNN_LSTM(input_channels=patch_loader.metadata['bands'])
     model = Siamese_Network(encoder).to(device)
-    checkpoint = torch.load("best_model_full.pth", map_location=device)
+    checkpoint = torch.load(os.path.join(BASE_DIR, "best_model_full.pth"), map_location=device)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
 
@@ -186,7 +198,7 @@ if __name__ == "__main__":
     # 9️⃣ Save results to file
     # ------------------------------------------
     print(f"\n💾 Saving results to {RESULTS_PATH} ...")
-    with open(RESULTS_PATH, "w") as f:
+    with open(os.path.join(BASE_DIR, RESULTS_PATH), "w") as f:
         f.write("Siamese + Logistic Regression Evaluation Results\n")
         f.write("===============================================\n\n")
         f.write(f"Accuracy:  {acc:.4f}\n")
@@ -201,7 +213,7 @@ if __name__ == "__main__":
     # ------------------------------------------
     # 🔟 Save classifier for future reuse
     # ------------------------------------------
-    joblib.dump(clf, "logistic_regression_classifier.pkl")
+    joblib.dump(clf, os.path.join(BASE_DIR, "logistic_regression_classifier.pkl"))
     print("\n✅ Logistic Regression model saved as logistic_regression_classifier.pkl")
     print("✅ Metrics saved to logreg_results.txt")
     print("\n🎉 Done! Everything completed successfully.\n")
