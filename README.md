@@ -65,8 +65,8 @@ EarthSentinel is an advanced deep learning project that utilizes Siamese Neural 
    - Execute `generating_pairs.py` to create training pairs
 
 2. **Model Training**
-   - Quick training: Use `quick_train.py` for rapid prototyping
-   - Full training: Use `Batch_train.py` for complete model training
+   - Quick training: Use `quick_train.py` for rapid prototyping  #in prog
+   - Full training: Use `Batch_train.py` for complete model training   #in prog
 
 3. **Model Checkpoints**
    - Regular checkpoints saved during training
