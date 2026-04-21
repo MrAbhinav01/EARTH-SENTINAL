@@ -1,0 +1,15 @@
+checkpoint_epoch_*.pth
+checkpoint_best.pth
+logs/
+wandb/
+__pycache__/
+images/
+*.log
+patch_chunks/
+venv/
+downloaded_weeks/
+patch_chunks_final/
+*.tif
+*.png
+credentials.json
+client_secrets.json
