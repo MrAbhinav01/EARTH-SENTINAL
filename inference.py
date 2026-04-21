@@ -12,6 +12,8 @@ import rasterio
 from tqdm import tqdm
 import joblib
 import geopandas as gpd
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from shapely.geometry import box
 
@@ -48,6 +50,7 @@ import torch.nn as nn
 class FullCNN_LSTM(nn.Module):
     def __init__(self, input_channels=4, cnn_feature_dim=512, lstm_hidden=256):
         super().__init__()
+        self.lstm_hidden = lstm_hidden
         self.cnn = nn.Sequential(
             nn.Conv2d(input_channels, 32, 3, padding=1),
             nn.ReLU(),
@@ -64,12 +67,16 @@ class FullCNN_LSTM(nn.Module):
 
     def forward(self, x):
         batch_size, weeks, bands, H, W = x.shape
+        if weeks == 0:
+            return torch.zeros((batch_size, self.lstm_hidden), device=x.device)
+
         cnn_out = []
         for t in range(weeks):
             xi = x[:, t]
             fi = self.cnn(xi).view(batch_size, -1)
             fi = self.fc(fi)
             cnn_out.append(fi)
+
         cnn_out = torch.stack(cnn_out, dim=1)
         _, (h_n, _) = self.lstm(cnn_out)
         return h_n[-1]
@@ -83,6 +90,22 @@ class Siamese_Network(nn.Module):
         emb1 = self.encoder(x1)
         emb2 = self.encoder(x2)
         return emb1, emb2
+
+
+def build_preview_image(heatmap, max_preview_dim=2048):
+    height, width = heatmap.shape
+    scale = max(1, int(np.ceil(max(height, width) / max_preview_dim)))
+    preview = heatmap[::scale, ::scale]
+
+    min_val = float(np.min(preview))
+    max_val = float(np.max(preview))
+
+    if max_val > min_val:
+        preview = (preview - min_val) / (max_val - min_val)
+    else:
+        preview = np.zeros_like(preview, dtype=np.float32)
+
+    return preview.astype(np.float32), scale
 
 # -------------------------
 # Inference Function
@@ -129,19 +152,27 @@ def run_inference(chunk_dir="patch_chunks_final", model_path="best_model_full.pt
         patches = patch_loader.get_patch_data(idx_batch)
         if len(patches) == 0:
             continue
+
         patches_tensor = torch.tensor(patches, dtype=torch.float32).to(device)
+        total_weeks = patches_tensor.shape[1]
         scores = []
 
         with torch.no_grad():
-            # Evaluate multiple before/after splits
-            for t in range(4, 11):  # t from 4 to 10 (inclusive)
+            # Only evaluate valid temporal splits for the data we actually loaded.
+            for t in range(1, total_weeks):
                 x1 = patches_tensor[:, :t]        # weeks 0 ... t-1
                 x2 = patches_tensor[:, t:]        # weeks t ... 13
-        
+
+                if x1.shape[1] == 0 or x2.shape[1] == 0:
+                    continue
+
                 emb1, emb2 = model(x1, x2)
                 feats = torch.abs(emb1 - emb2).cpu().numpy()
                 probs_t = clf.predict_proba(feats)[:, 1]
                 scores.append(probs_t)
+
+        if not scores:
+            continue
 
         # Final score = maximum event likelihood across temporal splits
         probs = np.max(np.stack(scores, axis=1), axis=1)
@@ -195,15 +226,15 @@ def run_inference(chunk_dir="patch_chunks_final", model_path="best_model_full.pt
     # -------------------------
     # Save PNG for visualization
     # -------------------------
+    preview, scale = build_preview_image(heatmap)
     plt.figure(figsize=(10,10))
-    min_val, max_val = np.min(heatmap), np.max(heatmap)
-    plt.imshow((heatmap - min_val) / (max_val - min_val), cmap='hot')
+    plt.imshow(preview, cmap='hot', interpolation='nearest')
     plt.colorbar(label="Normalized Risk")
 
-    plt.title("Himachal Risk Heatmap")
+    plt.title(f"Himachal Risk Heatmap (preview 1:{scale})")
     plt.axis("off")
-    plt.savefig("himachal_risk_map.png", dpi=300)
-    plt.show()
+    plt.savefig("himachal_risk_map.png", dpi=200, bbox_inches="tight")
+    plt.close()
     print("🎉 PNG visualization saved as himachal_risk_map.png")
 
 if __name__ == "__main__":
