@@ -85,13 +85,6 @@ Model checkpoints are saved at:
 - Regular intervals (checkpoint_epoch[1-5].pth)
 - Best performing iterations (best_model_fast.pth, best_model_full.pth)
 
-## 🤝 Contributing
-
-Contributions to improve the model's accuracy or extend its capabilities are welcome. Please ensure to:
-1. Follow the existing code structure
-2. Document any new features
-3. Test thoroughly before submitting changes
-
 
 
 Subject: AWS Cloud Support Associate
