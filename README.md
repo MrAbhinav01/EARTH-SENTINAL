@@ -4,7 +4,7 @@ EarthSentinel is an advanced deep learning project that utilizes Siamese Neural 
 
 ## 📋 Requirements
 
-- Python 3.10 or higher
+- Python 3.10 or higher 
 - PyTorch
 - NumPy
 - scikit-learn
